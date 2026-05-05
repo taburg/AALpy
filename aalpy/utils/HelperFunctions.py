@@ -339,6 +339,7 @@ def visualize_classification_tree(root_node):
 def is_balanced(input_seq, vpa_alphabet):
     counter = 0
     for i in input_seq:
+        assert i in vpa_alphabet.get_merged_alphabet(), f"The letter '{i}' is in neither of the alphabet subsets!"  # Sanity check
         if i in vpa_alphabet.call_alphabet:
             counter += 1
         if i in vpa_alphabet.return_alphabet:
