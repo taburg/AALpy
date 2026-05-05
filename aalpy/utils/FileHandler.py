@@ -7,12 +7,12 @@ from pydot import Dot, Node, Edge
 
 from aalpy.automata import Dfa, MooreMachine, Mdp, Onfsm, MealyState, DfaState, MooreState, MealyMachine, \
     MdpState, StochasticMealyMachine, StochasticMealyState, OnfsmState, MarkovChain, McState, Sevpa, SevpaState, \
-    SevpaTransition, Vpa, VpaState, VpaTransition, NDMooreMachine, NDMooreState
+    SevpaTransition, Vpa, VpaState, VpaTransition, Vca, VcaState, VcaTransition, NDMooreMachine, NDMooreState
 
 file_types = ['dot', 'png', 'svg', 'pdf', 'string']
 automaton_types = {Dfa: 'dfa', MealyMachine: 'mealy', MooreMachine: 'moore', Mdp: 'mdp',
                    StochasticMealyMachine: 'smm', Onfsm: 'onfsm', NDMooreMachine: 'ndmoore', MarkovChain: 'mc',
-                   Sevpa: 'sevpa', Vpa: 'vpa'}
+                   Sevpa: 'sevpa', Vpa: 'vpa', Vca: 'vca'}
 
 
 def _wrap_label(label):
@@ -42,7 +42,7 @@ def _get_node(state, automaton_type):
         return Node(state.state_id, label=_wrap_label(f'{state.output}'))
     if automaton_type == 'smm':
         return Node(state.state_id, label=_wrap_label(state.state_id))
-    if automaton_type == 'sevpa' or automaton_type == 'vpa':
+    if automaton_type == 'sevpa' or automaton_type == 'vpa' or automaton_type == 'vca':
         if state.is_accepting:
             return Node(state.state_id, label=_wrap_label(state.state_id), shape='doublecircle')
         return Node(state.state_id, label=_wrap_label(state.state_id))
@@ -118,6 +118,22 @@ def _add_transition_to_graph(graph, state, automaton_type, display_same_state_tr
                 elif transition.action == 'push':
                     edge = Edge(state.state_id, transition.target_state.state_id,
                                 label=_wrap_label(f'{transition.letter} / push({transition.stack_guard})'))
+                elif transition.action is None:
+                    edge = Edge(state.state_id, transition.target_state.state_id,
+                                label=_wrap_label(f'{transition.letter}'))
+                else:
+                    assert False
+                graph.add_edge(edge)
+    if automaton_type == 'vca':
+        for i in state.transitions.keys():
+            transitions_list = state.transitions[i]
+            for transition in transitions_list:
+                if transition.action == 'pop':
+                    edge = Edge(state.state_id, transition.target_state.state_id,
+                                label=_wrap_label(f'{transition.letter} / -1'))
+                elif transition.action == 'push':
+                    edge = Edge(state.state_id, transition.target_state.state_id,
+                                label=_wrap_label(f'{transition.letter} / +1'))
                 elif transition.action is None:
                     edge = Edge(state.state_id, transition.target_state.state_id,
                                 label=_wrap_label(f'{transition.letter}'))
