@@ -1182,6 +1182,58 @@ def passive_vpa_learning_on_all_benchmark_models():
         print('PAPNI model conforms to data.')
 
 
+def passive_vca_learning_matching_parens():
+    from aalpy.learning_algs import run_ZAPNI
+    from aalpy.automata import VpaAlphabet
+
+    vpa_alphabet = VpaAlphabet(internal_alphabet=[], call_alphabet=['('], return_alphabet=[')'])
+
+    list_data = [
+        (tuple(), True),
+        (('(',), False),
+        ((')',), False),
+        (('(', ')'), True),
+        (('(', '('), False),
+        ((')', '('), False),
+        ((')', ')'), False),
+        (('(', ')', '(', ')'), True),
+        (('(', '(', ')', ')'), True),
+        (('(', '(', '(', '('), False),
+        ((')', ')', ')', ')'), False),
+        (('(', '(', '(', ')'), False),
+        (('(', ')', ')', ')'), False),
+    ]
+
+    vca = run_ZAPNI(list_data, vpa_alphabet, algorithm='gsm', print_info=True)
+    vca.visualize()
+
+
+def passive_vca_learning_even_parens():
+    from aalpy.learning_algs import run_ZAPNI
+    from aalpy.automata import VpaAlphabet
+
+    vpa_alphabet = VpaAlphabet(internal_alphabet=[], call_alphabet=['('], return_alphabet=[')'])
+
+    list_data = [
+        (tuple(), True),
+        (('(',), False),
+        ((')',), False),
+        (('(', ')'), False),
+        (('(', '('), False),
+        ((')', '('), False),
+        ((')', ')'), False),
+        (('(', ')', '(', ')'), True),
+        (('(', '(', ')', ')'), True),
+        (('(', '(', '(', '('), False),
+        ((')', ')', ')', ')'), False),
+        (('(', '(', '(', ')'), False),
+        (('(', ')', ')', ')'), False),
+    ]
+
+    vca = run_ZAPNI(list_data, vpa_alphabet, algorithm='gsm', print_info=True)
+    vca.visualize()
+
+
 def gsm_rpni():
     from aalpy import load_automaton_from_file
     from aalpy.utils.Sampling import get_data_from_input_sequence, sample_with_length_limits
