@@ -238,6 +238,8 @@ def save_automaton_to_file(automaton, path="LearnedModel", file_type="dot",
 sevpa_transition_pattern = r"(\S+)\s*/\s*\(\s*'(\S+)'\s*,\s*'(\S+)'\s*\)"
 vpa_push_pattern = r"(\S+)\s*/\s*push\(\s*(.*?)\s*\)"
 vpa_pop_pattern = r"(\S+)\s*/\s*pop\(\s*(.*?)\s*\)"
+vca_push_pattern = r"(\S+)\s*/\s*\+1"
+vca_pop_pattern = r"(\S+)\s*/\s*-1"
 
 
 def _process_label(label, source, destination, automaton_type):
@@ -300,6 +302,23 @@ def _process_label(label, source, destination, automaton_type):
             stack_symbol = int(stack_symbol) if stack_symbol.isdigit() else stack_symbol
 
         transition = VpaTransition(source, destination, input_symbol, action, stack_symbol)
+
+        source.transitions[input_symbol].append(transition)
+    if automaton_type == 'vca':
+        input_symbol, action = None, None
+        if '+1' in label:
+            push_elements = re.match(vca_push_pattern, label)
+            input_symbol = push_elements.group(1)
+            action = 'push'
+        elif '-1' in label:
+            pop_elements = re.match(vca_pop_pattern, label)
+            input_symbol = pop_elements.group(1)
+            action = 'pop'
+        else:
+            input_symbol = label
+
+        input_symbol = int(input_symbol) if input_symbol.isdigit() else input_symbol
+        transition = VpaTransition(source, destination, input_symbol, action)
 
         source.transitions[input_symbol].append(transition)
 
@@ -383,7 +402,7 @@ def load_automaton_from_file(path, automaton_type, compute_prefixes=False):
     id_node_aut_map = {'dfa': (DfaState, Dfa), 'mealy': (MealyState, MealyMachine), 'moore': (MooreState, MooreMachine),
                        'onfsm': (OnfsmState, Onfsm), 'mdp': (MdpState, Mdp), 'mc': (McState, MarkovChain),
                        'smm': (StochasticMealyState, StochasticMealyMachine), 'sevpa': (SevpaState, Sevpa),
-                       'vpa': (VpaState, Vpa), 'ndmoore': (NDMooreState, NDMooreMachine)}
+                       'vpa': (VpaState, Vpa), 'vca': (VcaState, Vca), 'ndmoore': (NDMooreState, NDMooreMachine)}
 
     nodeType, aut_type = id_node_aut_map[automaton_type]
 
