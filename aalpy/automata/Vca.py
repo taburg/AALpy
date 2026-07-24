@@ -34,7 +34,8 @@ class VcaTransition:
         self.action = action
 
     def __str__(self):
-        return f"{self.letter}: {self.start.state_id} --> {self.target_state.state_id} | {self.action}: {self.stack_guard}"
+        # TODO unify this with the dot +1/-1 representation
+        return f"{self.letter}: {self.start.state_id} --> {self.target_state.state_id} | {self.action}"
 
 
 class Vca(Automaton):
@@ -99,7 +100,7 @@ class Vca(Automaton):
                 return False
             self.counter -= 1
 
-        return self.current_state.is_accepting and self.stack == []
+        return self.current_state.is_accepting and self.counter == 0
 
     def to_state_setup(self):
         state_setup_dict = {}
