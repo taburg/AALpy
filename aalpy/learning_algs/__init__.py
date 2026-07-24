@@ -14,3 +14,5 @@ from .deterministic_passive.ZAPNI import run_ZAPNI
 from .deterministic_passive.active_RPNI import run_active_RPNI
 from .general_passive.GeneralizedStateMerging import run_GSM
 from .general_passive.GsmAlgorithms import run_EDSM, run_Alergia_EDSM, run_k_tails
+from .resetless.hW import run_hW
+from .resetless.resetless_oracles import hWOracle, RandomhWOracle, RandomWphWOracle
