@@ -323,6 +323,7 @@ def _process_label(label, source, destination, automaton_type):
         source.transitions[input_symbol].append(transition)
 
 
+# FIXME this function seems to be unused (and if it were used, vpa and vca have wrong node labels)
 def _process_node_label(node, label, node_label_dict, node_type, automaton_type):
     node_name = node.get_name()
     if automaton_type == 'mdp' or automaton_type == 'mc':
@@ -365,7 +366,7 @@ def _process_node_label_prime(node_name, label, line, node_label_dict, node_type
             node_label_dict[node_name] = node_type(label, output)
         else:
             node_label_dict[node_name] = node_type(label)
-        if automaton_type in {'dfa', 'vpa', 'sevpa'}:
+        if automaton_type in {'dfa', 'vpa', 'sevpa', 'vca'}:
             if 'doublecircle' in line:
                 node_label_dict[node_name].is_accepting = True
 
