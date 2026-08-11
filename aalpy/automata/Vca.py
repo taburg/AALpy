@@ -287,12 +287,14 @@ def vpa_from_vca_representation(vca_repr, stack_symbol='$'):
 
     vpa_states = dict()
     for vca_state in vca_repr.states:
+        # FIXME should this be VPA state, not VCA state?
         vpa_state = VcaState(state_id=vca_state.state_id, is_accepting=vca_state.is_accepting)
         vpa_states[dfa_state.state_id] = vpa_state
 
     for vca_state in vca_repr.states:
         for input_symbol, reached_vca_state in vca_state.transitions.items():
             origin_state = vpa_states[vca_state.state_id]
+            # FIXME see complement_vca: this should not work!
             reached_state = vpa_states[reached_vca_state.state_id]
 
             # TODO this could be a long and ugly one-liner
@@ -309,3 +311,145 @@ def vpa_from_vca_representation(vca_repr, stack_symbol='$'):
     learned_model = Vpa(initial_state, list(vca_states.values()))
 
     return learned_model
+
+
+def complement_vca(vca: Vca) -> Vca:
+    """
+    Forms the complement of a VCA.
+    Importantly, the effect of the stack is not inversed, only the states of the automaton are.
+    The original VCA remains intact.
+    """
+
+    assert vca.m == 0, "Only 0-VCA are currently supported!"
+
+    # deep copy
+    complement_states = {state.state_id: VcaState(state_id=state.state_id, is_accepting=not state.is_accepting) for state in vca.states}
+    for state in vca.states:
+        for input_symbol, transitions in state.transitions.items():
+            origin_state = complement_states[state.state_id]
+            reached_state = complement_states[transitions[0].target_state.state_id]
+
+            # TODO this could be a long and ugly one-liner
+            if input_symbol in vca.input_alphabet.call_alphabet:
+                transition = VcaTransition(origin_state, reached_state, input_symbol, 'push')
+            if input_symbol in vca.input_alphabet.return_alphabet:
+                transition = VcaTransition(origin_state, reached_state, input_symbol, 'pop')
+            if input_symbol in vca.input_alphabet.internal_alphabet:
+                transition = VcaTransition(origin_state, reached_state, input_symbol, None)
+
+            origin_state.transitions[input_symbol].append(transition)
+
+    initial_state = complement_states[vca.initial_state.state_id]
+    complement = Vca(initial_state, list(complement_states.values()))
+
+    return complement
+
+
+# TODO overload * operator?
+def product_vca(vca1: Vca, vca2: Vca):
+    """
+    Forms the product of two VCAs.
+    A state in the product automaton is accepting if and only if both its original automata states are accepting.
+    """
+
+    assert vca1.m == 0, "Only 0-VCA are currently supported!"
+    assert vca2.m == 0, "Only 0-VCA are currently supported!"
+    assert vca1.call_set == vca2.call_set and vca1.return_set == vca2.return_set and vca1.internal_set == vca2.internal_set, "Both VCAs must have the same alphabet!"
+
+    product_states = {(s1.state_id, s2.state_id): VcaState(state_id=(s1.state_id + "/" + s2.state_id), is_accepting=(s1.is_accepting and s2.is_accepting)) for s1 in vca1.states for s2 in vca2.states}
+
+    for s1 in vca1.states:
+        for s2 in vca2.states:
+            origin_state = product_states[(s1.state_id, s2.state_id)]
+            for input_symbol in s1.transitions:
+                if input_symbol not in s2.transitions:
+                    continue
+                # Assume determinism and avoid adding each transition twice
+                if input_symbol in origin_state.transitions:
+                    continue
+                reached_state = product_states[(s1.transitions[input_symbol][0].target_state.state_id, s2.transitions[input_symbol][0].target_state.state_id)]
+
+                # TODO this could be a long and ugly one-liner
+                if input_symbol in vca1.input_alphabet.call_alphabet:
+                    transition = VcaTransition(origin_state, reached_state, input_symbol, 'push')
+                if input_symbol in vca1.input_alphabet.return_alphabet:
+                    transition = VcaTransition(origin_state, reached_state, input_symbol, 'pop')
+                if input_symbol in vca1.input_alphabet.internal_alphabet:
+                    transition = VcaTransition(origin_state, reached_state, input_symbol, None)
+
+                origin_state.transitions[input_symbol].append(transition)
+
+    # TODO remove non-reachable states?
+    initial_state = product_states[(vca1.initial_state.state_id, vca2.initial_state.state_id)]
+    product = Vca(initial_state, list(product_states.values()))
+
+    return product
+
+
+# TODO implement this for VPA, too - it's the same algorithm
+def is_language_empty(vca: Vca) -> bool:
+    """
+    Computes whether the language the VCA accepts is the empty language.
+
+    Algorithm from: Finkel et al. "A Direct Symbolic Approach to Model Checking Pushdown Systems" (Fig. 1)
+    Simplified to only compute epsilon transitions, since only they are needed for emptiness (as opposed to general reachability).
+    Emptiness is the case when no final state is reachable from the initial state via an epsilon-stack transition.
+    """
+
+    states = {q.state_id: q for q in vca.states}
+    stack = [(q, q) for q in states]
+    hash = set()
+
+    c_direct = {(q1, q2): [] for q1 in states for q2 in states}
+    c_trans = {(q1, q2): [] for q1 in states for q2 in states}
+
+    for q1 in states.values():
+        for t_plus in q1.transitions.values():
+            t_plus = t_plus[0]  # unpack list
+            if t_plus.action != 'push':
+                continue
+            for q2 in states.values():
+                for t_minus in q2.transitions.values():
+                    t_minus = t_minus[0]  # unpack list
+                    if t_minus.action != 'pop':
+                        continue
+                    c_direct[(t_plus.target_state.state_id, t_minus.start.state_id)].append((t_plus.start.state_id, t_minus.target_state.state_id))
+
+    for q1 in states:
+        for q2 in states:
+            if q1 == q2:
+                continue
+            for t in states:
+                c_trans[(q1, q2)].append(((q2, t), (q1, t)))
+                c_trans[(q1, q2)].append(((t, q1), (t, q2)))
+
+    while stack:
+        alpha = stack.pop()
+        hash.add(alpha)
+        stack.extend(c_direct[alpha])
+        c_direct[alpha] = []  # c_direct contents are transferred to stack
+        for gamma, beta in c_trans[alpha]:
+            if gamma in hash:
+                stack.append(beta)
+            else:
+                c_direct[gamma].append(beta)
+        c_trans[alpha] = []
+
+    # Check for emptiness
+    epsilon_stack_transitions = list(hash)
+    accepting_transitions = [t for t in epsilon_stack_transitions if t[0] == vca.initial_state.state_id and states[t[1]].is_accepting]
+    return len(accepting_transitions) == 0
+
+
+# TODO overload == operator in __eq__?
+def is_equal(vca1: Vca, vca2: Vca) -> bool:
+    vca1_compl = complement_vca(vca1)
+    vca2_compl = complement_vca(vca2)
+
+    vca1_x_vca2compl = product_vca(vca1, vca2_compl)
+    vca2_x_vca1compl = product_vca(vca1_compl, vca2)
+
+    vca1_subseteq_vca2 = is_language_empty(vca1_x_vca2compl)
+    vca2_subseteq_vca1 = is_language_empty(vca2_x_vca1compl)
+
+    return vca1_subseteq_vca2 and vca2_subseteq_vca1
