@@ -443,13 +443,17 @@ def is_language_empty(vca: Vca) -> bool:
 
 # TODO overload == operator in __eq__?
 def is_equal(vca1: Vca, vca2: Vca) -> bool:
-    vca1_compl = complement_vca(vca1)
+    # Use this order to minimize the number of large (product) automata in use at the same time
     vca2_compl = complement_vca(vca2)
-
     vca1_x_vca2compl = product_vca(vca1, vca2_compl)
-    vca2_x_vca1compl = product_vca(vca1_compl, vca2)
-
     vca1_subseteq_vca2 = is_language_empty(vca1_x_vca2compl)
+
+    # Unbind names to decrease reference count in hope of collection before next huge product automaton comes...
+    del vca1_x_vca2compl
+    del vca2_compl
+
+    vca1_compl = complement_vca(vca1)
+    vca2_x_vca1compl = product_vca(vca1_compl, vca2)
     vca2_subseteq_vca1 = is_language_empty(vca2_x_vca1compl)
 
     return vca1_subseteq_vca2 and vca2_subseteq_vca1
