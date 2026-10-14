@@ -400,40 +400,67 @@ def is_language_empty(vca: Vca) -> bool:
     stack = [(q, q) for q in states]
     hash = set()
 
-    c_direct = {(q1, q2): [] for q1 in states for q2 in states}
-    c_trans = {(q1, q2): [] for q1 in states for q2 in states}
+    # c_direct = {(q1, q2): [] for q1 in states for q2 in states}
+    # c_trans = {(q1, q2): [] for q1 in states for q2 in states}
 
-    for q1 in states.values():
-        for t_plus in q1.transitions.values():
-            t_plus = t_plus[0]  # unpack list
-            if t_plus.action != 'push':
-                continue
-            for q2 in states.values():
-                for t_minus in q2.transitions.values():
-                    t_minus = t_minus[0]  # unpack list
-                    if t_minus.action != 'pop':
-                        continue
-                    c_direct[(t_plus.target_state.state_id, t_minus.start.state_id)].append((t_plus.start.state_id, t_minus.target_state.state_id))
+    # for q1 in states.values():
+    #     for t_plus in q1.transitions.values():
+    #         t_plus = t_plus[0]  # unpack list
+    #         if t_plus.action != 'push':
+    #             continue
+    #         for q2 in states.values():
+    #             for t_minus in q2.transitions.values():
+    #                 t_minus = t_minus[0]  # unpack list
+    #                 if t_minus.action != 'pop':
+    #                     continue
+    #                 c_direct[(t_plus.target_state.state_id, t_minus.start.state_id)].append((t_plus.start.state_id, t_minus.target_state.state_id))
 
-    for q1 in states:
-        for q2 in states:
-            if q1 == q2:
-                continue
-            for t in states:
-                c_trans[(q1, q2)].append(((q2, t), (q1, t)))
-                c_trans[(q1, q2)].append(((t, q1), (t, q2)))
+    # for q1 in states:
+    #     for q2 in states:
+    #         if q1 == q2:
+    #             continue
+    #         for t in states:
+    #             c_trans[(q1, q2)].append(((q2, t), (q1, t)))
+    #             c_trans[(q1, q2)].append(((t, q1), (t, q2)))
 
     while stack:
         alpha = stack.pop()
         hash.add(alpha)
-        stack.extend(c_direct[alpha])
-        c_direct[alpha] = []  # c_direct contents are transferred to stack
-        for gamma, beta in c_trans[alpha]:
-            if gamma in hash:
+        # stack.extend(c_direct[alpha])
+        # c_direct[alpha] = []  # c_direct contents are transferred to stack
+        # Compute c_direct on the fly
+        for q1 in states.values():
+            for t_plus in q1.transitions.values():
+                t_plus = t_plus[0]  # unpack list
+                if t_plus.action != 'push' or t_plus.target_state.state_id != alpha[0]:
+                    continue
+                for q2 in states.values():
+                    for t_minus in q2.transitions.values():
+                        t_minus = t_minus[0]  # unpack list
+                        if t_minus.action != 'pop' or t_minus.start.state_id != alpha[1]:
+                            continue
+                        c_direct_transition = (t_plus.start.state_id, t_minus.target_state.state_id)
+                        if c_direct_transition not in hash and c_direct_transition not in stack:
+                            stack.append(c_direct_transition)
+        # Compute c_trans pending transitions in c_direct on the fly
+        # TODO merge with below?
+        for former_alpha in hash:
+            if former_alpha == alpha:
+                continue
+            for t in states:
+                gamma, beta = (former_alpha[1], t), (former_alpha[0], t)
+                if gamma in hash and beta not in hash and beta not in stack:
+                    stack.append(beta)
+                gamma, beta = (t, former_alpha[0]), (t, former_alpha[1])
+                if gamma in hash and beta not in hash and beta not in stack:
+                    stack.append(beta)
+            
+        # Compute c_trans[alpha] on the fly
+        for t in states:
+            gamma, beta = (alpha[1], t), (alpha[0], t)
+            gamma, beta = (t, alpha[0]), (t, alpha[1])
+            if gamma in hash and beta not in hash and beta not in stack:
                 stack.append(beta)
-            else:
-                c_direct[gamma].append(beta)
-        c_trans[alpha] = []
 
     # Check for emptiness
     epsilon_stack_transitions = list(hash)
