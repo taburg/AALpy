@@ -19,7 +19,7 @@ def _wrap_label(label):
     """
     Adds a " " around a label if not already present on both ends.
     """
-    if label[0] == '\"' and label[-1] == '\"':
+    if isinstance(label, str) and label[0] == '\"' and label[-1] == '\"':
         return label
     return f'\"{label}\"'
 
