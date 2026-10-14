@@ -37,10 +37,12 @@ def run_EDSM(data, automaton_type, input_completeness=None, print_info=True) -> 
             reverse_partition[resulting_node].append(original_node)
         evidence = 0
         for node, contributing_nodes in reverse_partition.items():
+            # FIXME should this be unknown_output instead of None?
             if node.get_prefix_output() is None:
                 continue  # No evidence whatsoever
             evidence -= 1  # subtract self-comparison
             for contributing_node in contributing_nodes:
+                # FIXME should this be unknown_output instead of None?
                 if contributing_node.get_prefix_output() is not None:
                     evidence += 1
         return evidence
